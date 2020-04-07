@@ -34,7 +34,6 @@ solve_task_bt(Task,Current,Depth,RPath,[cost(Cost),depth(Depth)],NewPos) :-
   achieved(Task,Current,RPath,Cost,NewPos).
 
 
-% I assume we edit this
 % change this from BFS to A*
 % Will need to calculate manhatten distance using map_distance(+Pos1,+Pos2,-Dist)
 solve_task_bt(Task,Current,D,RR,Cost,NewPos) :-
@@ -46,21 +45,23 @@ solve_task_bt(Task,Current,D,RR,Cost,NewPos) :-
     % (cur_pos, new_posS, new_posS, 1? )
   % !!might want to create a new search function that gives a list of new positions instead of 1
     % !!then calculate new cost for all of them
+    % !!new cost = (cost so far) F + (heuristic: manhatten distance from current to final distance) H 
       % !!then get the smallest one
         % !!them recurse
   search(P,P1,R,C),
 
   % is the new positions in the path we've been
   \+ memberchk(R,RPath),  % check we have not been here already
+
+  % ------------------- NOT FINAL --------------------------------
+  map_distance(P, NewPos, H),
+  newCost is F + H,
   
   % Otherwise continue so we increase depth
   D1 is D+1,
 
   % and also cost coz we moving one more step
-    % !!new cost = (cost so far) F + (heuristic: manhatten distance from current to final distance) H 
-  map_distance(P, NewPos, H),
-  F1 is F + H,
-  %F1 is F+C,
+  F1 is F+C,
 
   % and we find another move with low cost
     % oh wait old one doesn't do that new one needs to
