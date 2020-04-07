@@ -46,6 +46,7 @@ solve_task_bt(Task,Current,D,RR,Cost,NewPos) :-
   % !!might want to create a new search function that gives a list of new positions instead of 1
     % !!then calculate new cost for all of them
     % !!new cost = (cost so far) F + (heuristic: manhatten distance from current to final distance) H 
+    % fron current doesn't make sense, it should be each valid adjacent
       % !!then get the smallest one
         % !!them recurse
   search(P,P1,R,C),
@@ -54,7 +55,7 @@ solve_task_bt(Task,Current,D,RR,Cost,NewPos) :-
   \+ memberchk(R,RPath),  % check we have not been here already
 
   % ------------------- NOT FINAL --------------------------------
-  map_distance(P, NewPos, H),
+  map_distance(R, NewPos, H),
   newCost is F + H,
   
   % Otherwise continue so we increase depth
