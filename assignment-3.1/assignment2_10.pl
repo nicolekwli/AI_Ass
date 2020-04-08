@@ -15,7 +15,9 @@ solve_task(Task,Cost):-
   % I assume this gets P returned as the current position
   query_world( agent_current_position, [Agent,P] ),
   
-  solve_task_bt(Task,[c(0,P),P],0,R,Cost,_NewPos),!,  % prune choice point for efficiency
+  % proceed to find the shortest path
+  % solve_task_bt(Task,[c(0,P),P],0,R,Cost,_NewPos),!,  % prune choice point for efficiency
+  solve_task_bt(Task,[c(0,0,P),P],0,R,Cost,_NewPos),!,
   reverse(R,[_Init|Path]),
 
   % This performs the path found 
@@ -37,26 +39,27 @@ solve_task_bt(Task,Current,Depth,RPath,[cost(Cost),depth(Depth)],NewPos) :-
 % change this from BFS to A*
 % Will need to calculate manhatten distance using map_distance(+Pos1,+Pos2,-Dist)
 solve_task_bt(Task,Current,D,RR,Cost,NewPos) :-
-  % Why make it a current thing but its not used -- omg is it to split it up into 
-    % variables inside the function that we can use within the function
-  Current = [c(F,P)|RPath],
+  % Current = [c(F,P)|RPath],
+  
+  % from hint 6: total cost = F + G
+  Current = [c(F, G, P) | RPath],
 
-  % gives adjacent locations
-    % (cur_pos, new_posS, new_posS, 1? )
+  % I belive current search predicate gives only one next position: p1/ R
   % !!might want to create a new search function that gives a list of new positions instead of 1
     % !!then calculate new cost for all of them
-    % !!new cost = (cost so far) F + (heuristic: manhatten distance from current to final distance) H 
-    % fron current doesn't make sense, it should be each valid adjacent
+    % !!new cost = (cost so far) F + (heuristic: manhatten distance from next ppsition to final distance) H 
       % !!then get the smallest one
         % !!them recurse
+
+
+  % Find the next position to add using setof involving search
+  % setof(+Template, +Goal, -Set)
+    % binds Set to the list of all instances of Template satisfying the goal Goal
+  % setof([c(F,G,P)|RPath], minimal, [c(F1,G1,P1),R|RPath])
   search(P,P1,R,C),
 
-  % is the new positions in the path we've been
+  % \not +provable, is the new positions in the path we've been
   \+ memberchk(R,RPath),  % check we have not been here already
-
-  % ------------------- NOT FINAL --------------------------------
-  map_distance(R, NewPos, H),
-  newCost is F + H,
   
   % Otherwise continue so we increase depth
   D1 is D+1,
@@ -64,9 +67,13 @@ solve_task_bt(Task,Current,D,RR,Cost,NewPos) :-
   % and also cost coz we moving one more step
   F1 is F+C,
 
+  % ------------------- NEW COST --------------------------------
+  map_distance(R, NewPos, G1),
+  % G is F + H,
+
   % and we find another move with low cost
     % oh wait old one doesn't do that new one needs to
-  solve_task_bt(Task,[c(F1,P1),R|RPath],D1,RR,Cost,NewPos).  % backtrack search
+  solve_task_bt(Task,[c(F1, G1, P1), R | RPath],D1,RR,Cost,NewPos).  % backtrack search
 
 % achieved - detects when the specified task has been solved
 achieved(go(Exit),Current,RPath,Cost,NewPos) :-
@@ -84,6 +91,16 @@ achieved(find(O),Current,RPath,Cost,NewPos) :-
 % (cur_pos_so_far, p1, R, 1)
 search(F,N,N,1) :-
   map_adjacent(F,N,empty).
+
+search(Agenda, Goal) :-
+  next(Agenda, Goal, Rest),
+  goal(Goal).
+
+search(Agenda, Goal) :-
+  next(Agenda, Current, Rest),
+  children(Current, Children),
+  add(Children, Rest, NewAgenda),
+  search(NewAgenda, Goal).
 
 
 %%%%%%%%%% Solution %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
