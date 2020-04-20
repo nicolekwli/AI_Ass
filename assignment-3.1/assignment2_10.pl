@@ -20,8 +20,8 @@ solve_task(Task,Cost):-
   % This performs the path found 
   query_world( agent_do_moves, [Agent,Path] ).
 
+
 %%%%%%%%%% Useful predicates %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% backtracking depth-first search, needs to be changed to agenda-based A*
 % solve_task_bt(+Task,+Current,+Depth,-RPath,-Cost,-NewPos)
 % Current is of the form [c(F,P)|RPath]; 
 %    RPath is a list of positions denoting the current path (in reverse) 
@@ -35,6 +35,7 @@ solve_task_bt(Task,Current, ClosedList, Depth,RPath,[cost(Cost),depth(Depth)],Ne
 
 % A* algorithm
 solve_task_bt(Task,Current, ClosedList, D,RR,Cost,NewPos) :-
+
   Current = [c(F, G, P) | RPath],
   RPath = [RPath_h| RPath_t],
 
@@ -95,7 +96,8 @@ solve_task_bt(Task,Current, ClosedList, D,RR,Cost,NewPos) :-
   % and we have found the next position for the agent to move to
   solve_task_bt(Task,[c(F1, G1, NextMovePos), NextMovePos | RPathNew], ClosedListNew, D1,RR,Cost,NewPos).  % backtrack search
 
-% achieved - detects when the specified task has been solved
+
+%% achieved - detects when the specified task has been solved
 achieved(go(Exit),Current,RPath,Cost,NewPos) :-
   Current = [c(F,G,NewPos)|RPath],
   Cost is G,
@@ -115,6 +117,7 @@ achieved(find(O),Current,RPath,Cost,NewPos) :-
 search(F, Final, N, H, 1) :-
   map_adjacent(F,N,empty),
   map_distance(N, Final, H).
+
 
 % This is the main bit that gets the best aka lowest cost next move 
 get_best_next_move([], RPath, Final, ClosedList, BestH, Move).
@@ -210,19 +213,3 @@ check_if_in_path(Pos, RPath) :-
 % should maybe include oracles and shits
 check_if_dead_end(P) :-
   setof(Child, map_adjacent(P, Child, empty), Poss).
-
-
-%%%%%%%%%% Solution %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-% The point of Part 1 is to write a predicate solve_task(+Task,-Cost) that finds the minimal cost of 
-% solving any task of the following form (where integers X,Y and N are naturals):
-% Your predicate should either succeed and return the minimal cost of achieving the task, 
-% or it should fail if the task is not feasible (either because obstacles prevent you from reaching the target, or because you would run out of energy before you got there).
-
-% In Part 1, your code should fail if it cannot find a path to the destination using only the energy 
-% that is initially available.
-
-
-% your task is to write an improved A* algorithm that finds optimal solutions using the Manhattan heuristic 
-% to speed up the search when the target location is known in advance (or using breadth-first search when it is not)
