@@ -18,42 +18,73 @@ solve_task(Task,Cost):-
 
   % Nodes are in the form n(Current position,Depth,Cost of path,RPath)
   Start = n(P,0,0,[P]),
-  a_star(Task,[Start],R),!,
+  a_star(Task,[Start],R,TotalCost),!,
+
+
   reverse(R,[_Init|Path]),
+  Cost = TotalCost,
 
   % This performs the path found
   query_world( agent_do_moves, [Agent,Path] ).
 
-a_star(Task,Open,ReturnPath) :-
+a_star(Task,Open,ReturnPath,TotalCost) :-
+  my_agent(A),
+  query_world(agent_current_energy,[A,E]),
+  E > 0,
   Task = go(Final),
   Open = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
   Current = Final,
-  ReturnPath = RPath.
+  ReturnPath = RPath,
+  TotalCost = Cost.
 
-a_star(Task,Open,ReturnPath) :-
+a_star(Task,Open,ReturnPath,TotalCost) :-
+  my_agent(A),
+  query_world(agent_current_energy,[A,E]),
+  E > 0,
   Task = find(Final),
   Open = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
   map_adjacent(Current,_,Final),
-  ReturnPath = RPath.
+  ReturnPath = RPath,
+  TotalCost = Cost.
 
-a_star(Task,Open,ReturnPath) :-
+a_star(Task,Open,ReturnPath,TotalCost) :-
   Open = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
-  findall(n(Position,NewDepth,NewCost,NewRPath),search(Task,Current,Depth,RPath,Position,NewDepth,NewCost,NewRPath),Children),
+
+  my_agent(A),
+  query_world(agent_current_energy,[A,E_base]),
+  E is E_base - Depth,
+  E > 0,
+
+  (E < 20 ->
+    write('low energy! must go to charge\n'),
+    a_star(find(c(_)),[n(Current,Depth,Cost,RPath)],_,_),
+    R = [R_h|R_t],
+    R_h = n(AdjustedCurrent,AdjustedDepth,_,AdjustedRPath)
+  ;
+    write('energy OK! at '),
+    write($E),
+    write('\n'),
+    AdjustedCurrent = Current,
+    AdjustedDepth = Depth,
+    AdjustedRPath = RPath
+  ),
+
+  findall(n(NewCurrent,NewDepth,NewCost,NewRPath),search(Task,AdjustedCurrent,AdjustedDepth,AdjustedRPath,NewCurrent,NewDepth,NewCost,NewRPath),Children),
   append(Open_t,Children,NewOpen),
   sort(2,>=,NewOpen,NewOpenDepthSorted),
   sort(3,=<,NewOpenDepthSorted,NewOpenSorted),
-  a_star(Task,NewOpenSorted,ReturnPath).
+  a_star(Task,NewOpenSorted,ReturnPath,TotalCost).
 
-search(Task,Current,Depth,RPath,Position,NewDepth,NewCost,NewRPath) :-
+search(Task,Current,Depth,RPath,NewCurrent,NewDepth,NewCost,NewRPath) :-
   map_adjacent(Current,New,empty),
   \+memberchk(New,RPath),
-  Position = New,
+  NewCurrent = New,
   NewDepth is Depth + 1,
-  total_cost(Position,NewDepth,Task,NewCost),
-  NewRPath = [Position|RPath].
+  total_cost(NewCurrent,NewDepth,Task,NewCost),
+  NewRPath = [NewCurrent|RPath].
 
 total_cost(Current,Depth,Task,Cost) :-
   Task = go(Final),

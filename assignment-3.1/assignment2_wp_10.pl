@@ -31,4 +31,7 @@ find_from_link(Bag, A):-
   ).
 
 find_identity_o(A):-
-  A='Not yet implemented'.
+  % initialises the list of all possible actors and the links on their pages
+  findall((Actor, Links), (actor(Actor), wp(Actor, Text), findall(Link, wt_link(Text, Link), Links)), Bag),
+  % recursively eliminate actors
+  find_from_link(Bag, A).
