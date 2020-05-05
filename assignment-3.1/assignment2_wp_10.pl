@@ -32,3 +32,11 @@ find_from_link(Bag, A):-
 
 find_identity_o(A):-
   A='Not yet implemented'.
+
+% need to track visited and unvisited oracles
+%  track list of all charging stations
+
+% a relatively simple solution should easily be able to visit nine out of ten available oracles 
+% within two times the optimal number of steps — which would guarantee at least 10% for Part 3
+
+
