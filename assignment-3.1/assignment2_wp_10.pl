@@ -31,6 +31,7 @@ find_from_link(Bag, A):-
   ).
 
 find_identity_o(A):-
+<<<<<<< HEAD
   A='Not yet implemented'.
 
 % need to track visited and unvisited oracles
@@ -40,3 +41,9 @@ find_identity_o(A):-
 % within two times the optimal number of steps — which would guarantee at least 10% for Part 3
 
 
+=======
+  % initialises the list of all possible actors and the links on their pages
+  findall((Actor, Links), (actor(Actor), wp(Actor, Text), findall(Link, wt_link(Text, Link), Links)), Bag),
+  % recursively eliminate actors
+  find_from_link(Bag, A).
+>>>>>>> 179ef5daacf4d11bcb881d23fb6aba1f35b6f31f
