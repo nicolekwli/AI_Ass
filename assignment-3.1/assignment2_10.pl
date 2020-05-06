@@ -6,25 +6,39 @@ candidate_number(10).
 % find path considering more stuff (part3/4)
 
 % for example solve_task(+go(Pos), -Cost).
-% fail when task not feasible/ no energy
+% fail when task not feasible or not enough energy
 solve_task(Task,Cost):-
+  write('\n SOLVE TASK '),
   my_agent(Agent),
   query_world( agent_current_position, [Agent,P] ),
+  query_world(agent_current_energy, [Agent, Energy]), % get the energy currently
 
   ClosedList = [P],
 
   % Nodes are in the form n(Current position,Depth,Cost of path,RPath)
   Start = n(P,0,0,[P]),
-  a_star(Task,[Start],ClosedList,R,Cost),!,
+  a_star(Energy,Task,[Start],ClosedList,R,Cost),!,
+
+  % TODO: could do if energy is less, then top up on the way
 
   reverse(R,[_Init|Path]),
 
   % This performs the path found
   query_world( agent_do_moves, [Agent,Path] ).
 
+
+% so topping up would be:
+% query_world( agent_topup_energy, [Agent, Station]).
+
+%  ----------
 % base case for go
-a_star(Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
+a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
+  write(' a-star go \n'),
+  Energy = E,
   Task = go(Final),
+% check if final is valid
+  % write('final is '), write($Final), write('\n'),
+  % \+check_valid(Final),
   OpenList = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
   Current = Final,
@@ -32,7 +46,9 @@ a_star(Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
   TotalCost = Cost.
 
 % base case for find
-a_star(Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
+a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
+  write('\n a-star find \n'),
+  Energy = E,
   Task = find(Final),
   OpenList = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
@@ -41,12 +57,12 @@ a_star(Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
   TotalCost = Cost.
 
 % recursive case
-a_star(Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
+a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
+  % CurEnergy = Energy,
   OpenList = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
-
-  % write($OpenList),write('\n'),
-
+  % write(' open list '),
+  % write($OpenList), write('\n'),
   %creates a list of all possible children
   findall(n(NewCurrent,NewDepth,NewCost,NewRPath),search(Task,Current,Depth,RPath,ClosedList,NewCurrent,NewDepth,NewCost,NewRPath),Children),
 
@@ -58,11 +74,18 @@ a_star(Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
     NewClosedList = ClosedList
   ),
 
+  % check if current energy is too little, fail if true, continue if false
+  ( Energy < Cost -> write('not enough energy \n'), fail
+    ; write('enough energy')
+  ),
+
   % manually insert all children into the OpenList, maintaining the order they're in
   insert_children(Children,Open_t,NewOpenList),
 
-  a_star(Task,NewOpenList,NewClosedList,ReturnPath,TotalCost).
+  a_star(Energy,Task,NewOpenList,NewClosedList,ReturnPath,TotalCost).
 
+
+%  ----------
 % base case for inserting empty list
 insert_children([],OpenList,NewOpenList) :-
   NewOpenList = OpenList.
@@ -96,9 +119,12 @@ insert_child(Child,OpenList,NewOpenList) :-
     NewOpenList = [Open_h|Open_t2]
   ).
 
+
+%  ----------
 % searches for a possible child node and calculates its cost
 search(Task,Current,Depth,RPath,ClosedList,NewCurrent,NewDepth,NewCost,NewRPath) :-
   map_adjacent(Current,New,empty),
+  % maybe could check valid goal here?
   \+memberchk(New,RPath),
   \+memberchk(New,ClosedList),
   NewCurrent = New,
@@ -106,6 +132,8 @@ search(Task,Current,Depth,RPath,ClosedList,NewCurrent,NewDepth,NewCost,NewRPath)
   total_cost(NewCurrent,NewDepth,Task,NewCost),
   NewRPath = [NewCurrent|RPath].
 
+
+%  ----------
 % calculates the cost for go, with the manhattan distance as the heuristic
 total_cost(Current,Depth,Task,Cost) :-
   Task = go(Final),
