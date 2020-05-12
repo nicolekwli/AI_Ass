@@ -15,6 +15,18 @@ solve_task(Task,Cost):-
 
   % Nodes are in the form n(Current position,Depth,Cost of path,RPath)
   Start = n(P,0,0,[P]),
+
+  a_star(find_charge,[Start],ClosedList,R,Cost),
+  reverse(R,[_Init|Path]),
+  query_world( agent_do_moves, [Agent,Path] ),
+
+  query_world( agent_current_position, [Agent,P] ),
+
+  ClosedList = [P],
+
+  % Nodes are in the form n(Current position,Depth,Cost of path,RPath)
+  Start = n(P,0,0,[P]),
+
   a_star(Task,[Start],ClosedList,R,Cost),!,
 
   reverse(R,[_Init|Path]),
@@ -27,7 +39,8 @@ a_star(Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
   Task = go(Final),
   OpenList = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
-  Current = Final,
+  (Final = none -> true
+  ; otherwise -> Current = Final),
   ReturnPath = RPath,
   TotalCost = Cost.
 
@@ -36,7 +49,17 @@ a_star(Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
   Task = find(Final),
   OpenList = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
-  map_adjacent(Current,_,Final),
+  (Final = none -> true
+  ; otherwise -> map_adjacent(Current,_,Final)),
+  ReturnPath = RPath,
+  TotalCost = Cost.
+
+% base case for find_charge
+a_star(Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
+  Task = find_charge,
+  OpenList = [Open_h|Open_t],
+  Open_h = n(Current,Depth,Cost,RPath),
+  map_adjacent(Current,_,c(_)),
   ReturnPath = RPath,
   TotalCost = Cost.
 
@@ -115,4 +138,9 @@ total_cost(Current,Depth,Task,Cost) :-
 % calculates the cost for find, without a heuristic
 total_cost(Current,Depth,Task,Cost) :-
   Task = find(Final),
+  Cost = Depth.
+
+% calculates the cost for find_charge, without a heuristic
+total_cost(Current,Depth,Task,Cost) :-
+  Task = find_charge,
   Cost = Depth.
