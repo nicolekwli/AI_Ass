@@ -1,6 +1,5 @@
 candidate_number(10).
 
-
 % finds the minimal cost of solving any task of the form (go(p(x,y))), find(o(n),c(n))
 % find path using energy available (part 1)
 % find path considering more stuff (part3/4)
@@ -17,29 +16,44 @@ solve_task(Task,Cost):-
 
   % Nodes are in the form n(Current position,Depth,Cost of path,RPath)
   Start = n(P,0,0,[P]),
-  a_star(Energy,Task,[Start],ClosedList,R,Cost),!,
 
-  % TODO: could do if energy is less, then top up on the way
+
+  ( % try a_star. if it succeeds the first time, we happy
+    a_star(Energy,Task,[Start],ClosedList,R,Cost) -> write('a_star happy \n')
+    ;
+    % if it doesnt succeed, we not happy
+    write('a_star is not happy\n'),
+    % find a charging station
+    % if this fails then not enough e to find charging station so everything fails.
+    a_star(Energy,find_charge,[Start],ClosedList,R,Cost), 
+    write('charging station found \n'),
+    reverse(R,[_Init|Path]),
+    query_world( agent_do_moves, [Agent, Path] ),
+    query_world( agent_topup_energy, [Agent,c(_)]),
+    write('Energy is topped up '),
+    % then do a_star from there to goal
+      query_world(agent_current_position, [Agent,NewP]),
+      NewClosedList = [NewP],
+      NewStart = n(NewP,0,0,[NewP]),
+      write($Task),
+      a_star(100,Task,[NewStart],NewClosedList,R,Cost),
+      write($Cost), 
+    write('all this is done\n')
+  ), 
+
+  % !, % do not backtrack before this
 
   reverse(R,[_Init|Path]),
 
   % This performs the path found
-  query_world( agent_do_moves, [Agent,Path] ).
+  query_world( agent_do_moves, [Agent, Path] ).
 
-
-% so topping up would be:
-% query_world( agent_topup_energy, [Agent, Station]).
 
 %  ----------
 % base case for go
-a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
-  write(' a-star go \n'),
-  Energy = E,
+a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost) :-
   Task = go(Final),
-% check if final is valid
-  % write('final is '), write($Final), write('\n'),
-  % \+check_valid(Final),
-  OpenList = [Open_h|Open_t],
+  OpenList = [Open_h|_Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
   Current = Final,
   ReturnPath = RPath,
@@ -47,8 +61,6 @@ a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
 
 % base case for find
 a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
-  write('\n a-star find \n'),
-  Energy = E,
   Task = find(Final),
   OpenList = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
@@ -56,9 +68,19 @@ a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
   ReturnPath = RPath,
   TotalCost = Cost.
 
+% base case for finding charging station
+% starts finding charging stations in order - so c(1) first
+% might want to change this so it finds the c(_) on the way?
+a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
+  Task = find_charge,
+  OpenList = [Open_h|Open_t],
+  Open_h = n(Current,Depth,Cost,RPath),
+  map_adjacent(Current,_,c(_)),
+  ReturnPath = RPath,
+  TotalCost = Cost.
+
 % recursive case
 a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
-  % CurEnergy = Energy,
   OpenList = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
   % write(' open list '),
@@ -75,8 +97,14 @@ a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
   ),
 
   % check if current energy is too little, fail if true, continue if false
-  ( Energy < Cost -> write('not enough energy \n'), fail
-    ; write('enough energy')
+  % TODO: deal with case energy is equal to Cost
+  % NewEnergy could be used for something else?
+  NewEnergy is Energy - Depth,
+  
+  % OR: if energy < threshold
+  ( Energy < Cost -> write(' not enough e \n'), fail
+    ;
+    write('enough e')
   ),
 
   % manually insert all children into the OpenList, maintaining the order they're in
@@ -124,8 +152,7 @@ insert_child(Child,OpenList,NewOpenList) :-
 % searches for a possible child node and calculates its cost
 search(Task,Current,Depth,RPath,ClosedList,NewCurrent,NewDepth,NewCost,NewRPath) :-
   map_adjacent(Current,New,empty),
-  % maybe could check valid goal here?
-  \+memberchk(New,RPath),
+  \+memberchk(New,RPath),  % making sure New is not in RPath and ClosedList
   \+memberchk(New,ClosedList),
   NewCurrent = New,
   NewDepth is Depth + 1,
@@ -141,6 +168,11 @@ total_cost(Current,Depth,Task,Cost) :-
   Cost is Depth + Distance.
 
 % calculates the cost for find, without a heuristic
-total_cost(Current,Depth,Task,Cost) :-
-  Task = find(Final),
+total_cost(_Current,Depth,Task,Cost) :-
+  Task = find(_Final),
+  Cost = Depth.
+
+% calculates the cost for find, in the case of find_charge only.
+total_cost(_Current,Depth,Task,Cost) :-
+  Task = find_charge,
   Cost = Depth.
