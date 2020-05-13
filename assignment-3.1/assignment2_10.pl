@@ -9,7 +9,7 @@ candidate_number(10).
 solve_task(Task,Cos
   my_agent(Agent),
   query_world( agent_current_position, [Agent,P] ),
-  query_world(agent_current_energy, [Agent, Energy]), % get the energy currently
+  query_world(agent_current_energy, [Agent, Energy]),
 
   ClosedList = [P],
 
@@ -42,10 +42,8 @@ solve_task(Task,Cos
     Cost is Temp2Cost + Temp3Cost
   ),
 
-  reverse(R,[_Init|Path]),
-
-  % This performs the path found
-  query_world( agent_do_moves, [Agent, Path] ).
+  reverse(R,[_Init|Path]), 
+  query_world( agent_do_moves, [Agent, Path] ).  % This performs the path found
 
 
 %  ----------
@@ -53,38 +51,29 @@ solve_task(Task,Cos
 a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost) :-
   Task = go(Final),
   OpenList = [Open_h|_Open_t],
-  Open_h = n(Current,Depth,Cost,RPath),
+  Open_h = n(Current,_Depth,Cost,RPath),
   (Final = none -> true
   ; otherwise -> Current = Final),
   ReturnPath = RPath,
   TotalCost = Cost.
 
 % base case for find
-a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
+a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost) :-
   Task = find(Final),
-  OpenList = [Open_h|Open_t],
-  Open_h = n(Current,Depth,Cost,RPath),
+  OpenList = [Open_h|_Open_t],
+  Open_h = n(Current,_Depth,Cost,RPath),
   (Final = none -> true
   ; otherwise -> map_adjacent(Current,_,Final)),
   ReturnPath = RPath,
   TotalCost = Cost.
 
 % base case for find_charge
-a_star(Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
-  Task = find_charge,
-  OpenList = [Open_h|Open_t],
-  Open_h = n(Current,Depth,Cost,RPath),
-  map_adjacent(Current,_,c(_)),
-  ReturnPath = RPath,
-  TotalCost = Cost.
-
-% base case for finding charging station
 % starts finding charging stations in order - so c(1) first
 % might want to change this so it finds the c(_) on the way?
-a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
+a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost) :-
   Task = find_charge,
-  OpenList = [Open_h|Open_t],
-  Open_h = n(Current,Depth,Cost,RPath),
+  OpenList = [Open_h|_Open_t],
+  Open_h = n(Current,_Depth,Cost,RPath),
   map_adjacent(Current,_,c(_)),
   ReturnPath = RPath,
   TotalCost = Cost.
@@ -107,7 +96,7 @@ a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
   % check if current energy is too little, fail if true, continue if false
   % TODO: deal with case energy is equal to Cost
   % NewEnergy could be used for something else?
-  NewEnergy is Energy - Depth,
+  _NewEnergy is Energy - Depth,
   
   % OR: if energy < threshold
   ( Energy < Cost -> fail

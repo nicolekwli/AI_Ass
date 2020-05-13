@@ -7,21 +7,28 @@ find_identity(A):-
   ; otherwise -> my_agent(Agent), find_identity_o(Agent, A)
   ).
 
+% ----
 find_identity_2(A):-
   % initialises the list of all possible actors and the links on their pages
   findall((Actor, Links), (actor(Actor), wp(Actor, Text), findall(Link, wt_link(Text, Link), Links)), Bag),
   % recursively eliminate actors
   find_from_link(Bag, A).
 
+
+% ----
 % custom member check predicate to work with lists of tuples
 memberCustom(X, (_A,[X|_])).
 memberCustom(X, (A,[_|Xs])) :- memberCustom(X, (A,Xs)).
 
+
+% ----
 % predicate to eliminate actors without link L from the list
 remove_actors(Bag, L, X):-
   include(memberCustom(L), Bag, Result),
   X=Result.
 
+
+% ----
 % recursive predicate to find actors by the links on their page
 find_from_link(Bag, A):-
   % if Bag is length 1, then you've found the actor
@@ -39,6 +46,9 @@ find_from_link_2(Agent, Bag, A):-
   ; otherwise -> query_world(agent_ask_oracle,[Agent,o(_),link,L]), write('link received '), write($L), write('\n'), remove_actors(Bag, L, Bag2), find_from_link_2(Agent, Bag2, A)
   ).
 
+
+% ----
+% THIS IS WHERE THE FUN BEGINS
 find_identity_o(Agent, A):-
   % initialises the list of all possible actors and the links on their pages
   findall((Actor, Links), (actor(Actor), wp(Actor, Text), findall(Link, wt_link(Text, Link), Links)), Bag),
