@@ -41,9 +41,26 @@ find_from_link(Bag, A):-
 find_from_link_2(Agent, Bag, A):-
   % write($Bag),write('\n'),
   % if Bag is length 1, then you've found the actor
-  (length(Bag,1) -> [(X,_)] = Bag, A = X
+  (length(Bag,1) ->
+    [(X,_)] = Bag,
+    A = X
   %otherwise, get a new link and remove from there
-  ; otherwise -> query_world(agent_ask_oracle,[Agent,o(_),link,L]), write('link received '), write($L), write('\n'), remove_actors(Bag, L, Bag2), find_from_link_2(Agent, Bag2, A)
+  ; otherwise -> 
+    query_world( agent_current_position, [Agent,P] ),
+    query_world(agent_current_energy, [Agent, Energy]),
+    ClosedList = [P],
+    Start = n(P,0,0,[P]),
+    a_star(Energy,identify,[Start],ClosedList,TempR,TempCost,Return),!,
+    % need return because query world doesn't work with variables, so we need the exact oracle
+
+    reverse(TempR,TempPath),
+    TempPath = [_head|TempPath_t],
+
+    query_world(agent_do_moves,[Agent,TempPath_t]),
+    query_world(agent_ask_oracle,[Agent,Return,link,L]),
+
+    remove_actors(Bag, L, Bag2),
+    find_from_link_2(Agent, Bag2, A)
   ).
 
 

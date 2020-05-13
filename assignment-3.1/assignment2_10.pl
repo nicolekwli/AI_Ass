@@ -6,7 +6,7 @@ candidate_number(10).
 
 % for example solve_task(+go(Pos), -Cost).
 % fail when task not feasible or not enough energy
-solve_task(Task,Cos
+solve_task(Task,Cost) :-
   my_agent(Agent),
   query_world( agent_current_position, [Agent,P] ),
   query_world(agent_current_energy, [Agent, Energy]),
@@ -16,12 +16,12 @@ solve_task(Task,Cos
   % Nodes are in the form n(Current position,Depth,Cost of path,RPath)
   Start = n(P,0,0,[P]),
 
-  (a_star(Energy,Task,[Start],ClosedList,TempR,TempCost) ->
+  (a_star(Energy,Task,[Start],ClosedList,TempR,TempCost,_Return) ->
     R = TempR,
     Cost = TempCost
   ;
     % need to find charging station
-    a_star(Energy,find_charge,[Start],ClosedList,Temp2R,Temp2Cost),!,
+    a_star(Energy,find_charge,[Start],ClosedList,Temp2R,Temp2Cost,_Return),!,
 
     reverse(Temp2R,Temp2Path),
     Temp2Path = [_head|Temp2Path_t],
@@ -36,7 +36,7 @@ solve_task(Task,Cos
     NewClosedList = [NewP],
     NewStart = n(NewP,0,0,[NewP]),
 
-    a_star(NewEnergy,Task,[NewStart],NewClosedList,Temp3R,Temp3Cost),
+    a_star(NewEnergy,Task,[NewStart],NewClosedList,Temp3R,Temp3Cost,_Return),
 
     R = Temp3R,
     Cost is Temp2Cost + Temp3Cost
@@ -48,7 +48,7 @@ solve_task(Task,Cos
 
 %  ----------
 % base case for go
-a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost) :-
+a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Return) :-
   Task = go(Final),
   OpenList = [Open_h|_Open_t],
   Open_h = n(Current,_Depth,Cost,RPath),
@@ -58,7 +58,7 @@ a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost) :-
   TotalCost = Cost.
 
 % base case for find
-a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost) :-
+a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Return) :-
   Task = find(Final),
   OpenList = [Open_h|_Open_t],
   Open_h = n(Current,_Depth,Cost,RPath),
@@ -70,7 +70,7 @@ a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost) :-
 % base case for find_charge
 % starts finding charging stations in order - so c(1) first
 % might want to change this so it finds the c(_) on the way?
-a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost) :-
+a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Return) :-
   Task = find_charge,
   OpenList = [Open_h|_Open_t],
   Open_h = n(Current,_Depth,Cost,RPath),
@@ -78,8 +78,20 @@ a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost) :-
   ReturnPath = RPath,
   TotalCost = Cost.
 
+% base case for identify
+a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Return) :-
+  Task = identify,
+  OpenList = [Open_h|_Open_t],
+  Open_h = n(Current,_Depth,Cost,RPath),
+  map_adjacent(Current,_,o(Oracle)),
+  my_agent(Agent),
+  \+query_world(agent_check_oracle,[Agent,o(Oracle)]),
+  ReturnPath = RPath,
+  TotalCost = Cost,
+  Return = o(Oracle).
+
 % recursive case
-a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
+a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost,Return) :-
   OpenList = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
   %creates a list of all possible children
@@ -107,7 +119,7 @@ a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost) :-
   % manually insert all children into the OpenList, maintaining the order they're in
   insert_children(Children,Open_t,NewOpenList),
 
-  a_star(Energy,Task,NewOpenList,NewClosedList,ReturnPath,TotalCost).
+  a_star(Energy,Task,NewOpenList,NewClosedList,ReturnPath,TotalCost,Return).
 
 
 %  ----------
@@ -172,4 +184,9 @@ total_cost(_Current,Depth,Task,Cost) :-
 % calculates the cost for find, in the case of find_charge only.
 total_cost(_Current,Depth,Task,Cost) :-
   Task = find_charge,
+  Cost = Depth.
+
+% calculates the cost for find, in the case of identify only.
+total_cost(_Current,Depth,Task,Cost) :-
+  Task = identify,
   Cost = Depth.
