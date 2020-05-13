@@ -6,7 +6,7 @@ candidate_number(10).
 
 % for example solve_task(+go(Pos), -Cost).
 % fail when task not feasible or not enough energy
-solve_task(Task,Cost):-
+solve_task(Task,Cos
   my_agent(Agent),
   query_world( agent_current_position, [Agent,P] ),
   query_world(agent_current_energy, [Agent, Energy]), % get the energy currently
