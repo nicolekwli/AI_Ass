@@ -16,12 +16,17 @@ solve_task(Task,Cost) :-
   % Nodes are in the form n(Current position,Depth,Cost of path,RPath)
   Start = n(P,0,0,[P]),
 
-  (a_star(Energy,Task,[Start],ClosedList,TempR,TempCost,_Return) ->
+  % finds the closest charging station
+  setof(Location, find_stations(Location), Stations),
+  closest_station(P,Stations,Closest),
+
+
+  (a_star(Energy,Task,[Start],ClosedList,TempR,TempCost,_Oracles,_Return) ->
     R = TempR,
     Cost = TempCost
   ;
     % need to find charging station
-    a_star(Energy,find_charge,[Start],ClosedList,Temp2R,Temp2Cost,_Return),!,
+    a_star(Energy,find(Closest),[Start],ClosedList,Temp2R,Temp2Cost,_Oracles,_Return),!,
 
     reverse(Temp2R,Temp2Path),
     Temp2Path = [_head|Temp2Path_t],
@@ -36,7 +41,7 @@ solve_task(Task,Cost) :-
     NewClosedList = [NewP],
     NewStart = n(NewP,0,0,[NewP]),
 
-    a_star(NewEnergy,Task,[NewStart],NewClosedList,Temp3R,Temp3Cost,_Return),
+    a_star(NewEnergy,Task,[NewStart],NewClosedList,Temp3R,Temp3Cost,_Oracles,_Return),
 
     R = Temp3R,
     Cost is Temp2Cost + Temp3Cost
@@ -48,7 +53,7 @@ solve_task(Task,Cost) :-
 
 %  ----------
 % base case for go
-a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Return) :-
+a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Oracles,Return) :-
   Task = go(Final),
   OpenList = [Open_h|_Open_t],
   Open_h = n(Current,_Depth,Cost,RPath),
@@ -58,7 +63,7 @@ a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Return) :-
   TotalCost = Cost.
 
 % base case for find
-a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Return) :-
+a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Oracles,Return) :-
   Task = find(Final),
   OpenList = [Open_h|_Open_t],
   Open_h = n(Current,_Depth,Cost,RPath),
@@ -67,19 +72,8 @@ a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Return) :-
   ReturnPath = RPath,
   TotalCost = Cost.
 
-% base case for find_charge
-% starts finding charging stations in order - so c(1) first
-% might want to change this so it finds the c(_) on the way?
-a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Return) :-
-  Task = find_charge,
-  OpenList = [Open_h|_Open_t],
-  Open_h = n(Current,_Depth,Cost,RPath),
-  map_adjacent(Current,_,c(_)),
-  ReturnPath = RPath,
-  TotalCost = Cost.
-
 % base case for identify
-a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Return) :-
+a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Oracles,Return) :-
   Task = identify,
   OpenList = [Open_h|_Open_t],
   Open_h = n(Current,_Depth,Cost,RPath),
@@ -91,11 +85,11 @@ a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Return) :-
   Return = o(Oracle).
 
 % recursive case
-a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost,Return) :-
+a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost,Oracles,Return) :-
   OpenList = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
   %creates a list of all possible children
-  findall(n(NewCurrent,NewDepth,NewCost,NewRPath),search(Task,Current,Depth,RPath,ClosedList,NewCurrent,NewDepth,NewCost,NewRPath),Children),
+  findall(n(NewCurrent,NewDepth,NewCost,NewRPath),search(Oracles,Task,Current,Depth,RPath,ClosedList,NewCurrent,NewDepth,NewCost,NewRPath),Children),
 
   % if the list of children is empty, it's a dead end so add the position to ClosedList
   length(Children,L),
@@ -119,7 +113,7 @@ a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost,Return) :-
   % manually insert all children into the OpenList, maintaining the order they're in
   insert_children(Children,Open_t,NewOpenList),
 
-  a_star(Energy,Task,NewOpenList,NewClosedList,ReturnPath,TotalCost,Return).
+  a_star(Energy,Task,NewOpenList,NewClosedList,ReturnPath,TotalCost,Oracles,Return).
 
 
 %  ----------
@@ -159,34 +153,79 @@ insert_child(Child,OpenList,NewOpenList) :-
 
 %  ----------
 % searches for a possible child node and calculates its cost
-search(Task,Current,Depth,RPath,ClosedList,NewCurrent,NewDepth,NewCost,NewRPath) :-
+search(Oracles,Task,Current,Depth,RPath,ClosedList,NewCurrent,NewDepth,NewCost,NewRPath) :-
   map_adjacent(Current,New,empty),
   \+memberchk(New,RPath),  % making sure New is not in RPath and ClosedList
   \+memberchk(New,ClosedList),
   NewCurrent = New,
   NewDepth is Depth + 1,
-  total_cost(NewCurrent,NewDepth,Task,NewCost),
+  total_cost(Oracles,NewCurrent,NewDepth,Task,NewCost),
   NewRPath = [NewCurrent|RPath].
 
 
 %  ----------
 % calculates the cost for go, with the manhattan distance as the heuristic
-total_cost(Current,Depth,Task,Cost) :-
+total_cost(Oracles,Current,Depth,Task,Cost) :-
   Task = go(Final),
   map_distance(Current, Final, Distance),
   Cost is Depth + Distance.
 
 % calculates the cost for find, without a heuristic
-total_cost(_Current,Depth,Task,Cost) :-
+total_cost(Oracles,_Current,Depth,Task,Cost) :-
   Task = find(_Final),
   Cost = Depth.
 
-% calculates the cost for find, in the case of find_charge only.
-total_cost(_Current,Depth,Task,Cost) :-
-  Task = find_charge,
-  Cost = Depth.
-
 % calculates the cost for find, in the case of identify only.
-total_cost(_Current,Depth,Task,Cost) :-
+% uses the average of distance to all oracles as the heuristic to
+% choose paths that visit more oracles rather than closer oracles
+total_cost(Oracles,Current,Depth,Task,Cost) :-
   Task = identify,
-  Cost = Depth.
+  calculate_distances(Current,Oracles,Distances),!,
+  average(Distances,Average),
+  Cost is Depth + Average.
+
+% calculates the distance from a current position to all the values in a list
+% i.e. the position of all the oracles/stations
+calculate_distances(Current,[],Distances) :-
+  Distances = [].
+
+calculate_distances(Current,[Oracle],Distances) :-
+  map_distance(Current,Oracle,Distance),
+  Distances = [Distance].
+
+calculate_distances(Current,[Oracle|Oracles],Distances) :-
+  map_distance(Current,Oracle,Distance),
+  calculate_distances(Current,Oracles,DistancesLeft),
+  Distances = [Distance|DistancesLeft].
+
+% for stations
+calculate_distances(Current,[(Station,Pos)],Distances) :-
+  map_distance(Current,Pos,Distance),
+  Distances = [(Station,Distance)].
+
+calculate_distances(Current,[(Station,Pos)|Stations],Distances) :-
+  map_distance(Current,Pos,Distance),
+  calculate_distances(Current,Stations,DistancesLeft),
+  Distances = [(Station,Distance)|DistancesLeft].
+
+% calculates the average of a list
+average(List,Average) :-
+  sumlist(List,Sum),
+  length(List,Length),
+  Length > 0,
+  Average is Sum/Length.
+
+% finds the location of the charging stations
+find_stations(Location) :-
+  between(1,20,X),
+  between(1,20,Y),
+  map_adjacent(p(X,Y),Pos,Object),
+  Object = c(_),
+  Location = (Object,Pos).
+
+% finds the closest charging station to current position
+closest_station(Current, Stations, Closest) :-
+  calculate_distances(Current,Stations,Distances),!,
+  sort(2,@=<,Distances,Sorted),
+  Sorted = [Sorted_h|_Sorted_t],
+  Sorted_h = (Closest,_Pos).

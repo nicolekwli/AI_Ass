@@ -38,7 +38,7 @@ find_from_link(Bag, A):-
   ).
 
 % recursive predicate to find actors by the links on their page
-find_from_link_2(Agent, Bag, A):-
+find_from_link_2(Agent, Oracles, Bag, A):-
   % write($Bag),write('\n'),
   % if Bag is length 1, then you've found the actor
   (length(Bag,1) ->
@@ -50,7 +50,7 @@ find_from_link_2(Agent, Bag, A):-
     query_world(agent_current_energy, [Agent, Energy]),
     ClosedList = [P],
     Start = n(P,0,0,[P]),
-    a_star(Energy,identify,[Start],ClosedList,TempR,TempCost,Return),!,
+    a_star(Energy,identify,[Start],ClosedList,TempR,TempCost,Oracles,Return),!,
     % need return because query world doesn't work with variables, so we need the exact oracle
 
     reverse(TempR,TempPath),
@@ -60,14 +60,24 @@ find_from_link_2(Agent, Bag, A):-
     query_world(agent_ask_oracle,[Agent,Return,link,L]),
 
     remove_actors(Bag, L, Bag2),
-    find_from_link_2(Agent, Bag2, A)
+    find_from_link_2(Agent, Oracles, Bag2, A)
   ).
 
 
-% ----
-% THIS IS WHERE THE FUN BEGINS
+% finds the identity of an actor
+% needs to find the position of all the oracles first, in order to search using a cleverer heuristic
 find_identity_o(Agent, A):-
+  setof(Location, find_oracles(Location), Oracles),
+
   % initialises the list of all possible actors and the links on their pages
   findall((Actor, Links), (actor(Actor), wp(Actor, Text), findall(Link, wt_link(Text, Link), Links)), Bag),
   % recursively eliminate actors
-  find_from_link_2(Agent, Bag, A).
+  find_from_link_2(Agent, Oracles, Bag, A).
+
+% finds the location of the oracles
+find_oracles(Location) :-
+  between(1,20,X),
+  between(1,20,Y),
+  map_adjacent(p(X,Y),Pos,Object),
+  Object = o(_),
+  Location = Pos.
