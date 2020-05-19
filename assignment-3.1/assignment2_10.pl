@@ -7,6 +7,7 @@ candidate_number(10).
 % for example solve_task(+go(Pos), -Cost).
 % fail when task not feasible or not enough energy
 solve_task(Task,Cost) :-
+  (Task = go(Final) -> check_free(Final)),
   my_agent(Agent),
   query_world( agent_current_position, [Agent,P] ),
   query_world(agent_current_energy, [Agent, Energy]),
@@ -222,6 +223,9 @@ find_stations(Location) :-
   map_adjacent(p(X,Y),Pos,Object),
   Object = c(_),
   Location = (Object,Pos).
+
+check_free(Target) :-
+  query_world(check_pos,[Target,empty]).
 
 % finds the closest charging station to current position
 closest_station(Current, Stations, Closest) :-

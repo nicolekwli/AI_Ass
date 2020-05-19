@@ -50,10 +50,37 @@ find_from_link_2(Agent, Oracles, Bag, A):-
     query_world(agent_current_energy, [Agent, Energy]),
     ClosedList = [P],
     Start = n(P,0,0,[P]),
-    a_star(Energy,identify,[Start],ClosedList,TempR,TempCost,Oracles,Return),!,
-    % need return because query world doesn't work with variables, so we need the exact oracle
 
-    reverse(TempR,TempPath),
+    % finds the closest charging station
+    setof(Location, find_stations(Location), Stations),
+    closest_station(P,Stations,Closest),
+
+    (a_star(Energy,identify,[Start],ClosedList,TempR,TempCost,Oracles,Return) ->
+      R = TempR
+    ;
+      % need to find charging station
+      a_star(Energy,find(Closest),[Start],ClosedList,Temp2R,Temp2Cost,_Oracles,_Return),!,
+
+
+      reverse(Temp2R,Temp2Path),
+      Temp2Path = [_head|Temp2Path_t],
+
+      query_world(agent_do_moves,[Agent,Temp2Path_t]),
+      query_world(agent_topup_energy,[Agent,c(_)]),
+
+      % continue
+      query_world( agent_current_position, [Agent,NewP] ),
+      query_world(agent_current_energy, [Agent,NewEnergy]),
+
+      NewClosedList = [NewP],
+      NewStart = n(NewP,0,0,[NewP]),
+
+      a_star(NewEnergy,identify,[NewStart],NewClosedList,Temp3R,Temp3Cost,Oracles,Return),!,
+
+      R = Temp3R
+    ),
+
+    reverse(R,TempPath),
     TempPath = [_head|TempPath_t],
 
     query_world(agent_do_moves,[Agent,TempPath_t]),
