@@ -1,11 +1,7 @@
 candidate_number(10).
 
-% finds the minimal cost of solving any task of the form (go(p(x,y))), find(o(n),c(n))
-% find path using energy available (part 1)
-% find path considering more stuff (part3/4)
 
-% for example solve_task(+go(Pos), -Cost).
-% fail when task not feasible or not enough energy
+% solve_task(+go(Pos), -Cost).
 solve_task(Task,Cost) :-
   (Task = go(Final) -> check_free(Final)
   ; otherwise -> true),
@@ -21,7 +17,6 @@ solve_task(Task,Cost) :-
   % finds the closest charging station
   setof(Location, find_stations(Location), Stations),
   closest_station(P,Stations,Closest),
-
 
   (a_star(Energy,Task,[Start],ClosedList,TempR,TempCost,_Oracles,_Return) ->
     R = TempR,
@@ -89,7 +84,6 @@ a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Oracles,Return) :-
 
 % recursive case
 a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost,Oracles,Return) :-
-  % write($ClosedList),write('\n'),
   OpenList = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
   %creates a list of all possible children
@@ -222,6 +216,7 @@ find_stations(Location) :-
   Object = c(_),
   Location = (Object,Pos).
 
+% making sure that the target position is empty
 check_free(Target) :-
   query_world(check_pos,[Target,empty]).
 
