@@ -7,7 +7,8 @@ candidate_number(10).
 % for example solve_task(+go(Pos), -Cost).
 % fail when task not feasible or not enough energy
 solve_task(Task,Cost) :-
-  (Task = go(Final) -> check_free(Final)),
+  (Task = go(Final) -> check_free(Final)
+  ; otherwise -> true),
   my_agent(Agent),
   query_world( agent_current_position, [Agent,P] ),
   query_world(agent_current_energy, [Agent, Energy]),
@@ -24,7 +25,7 @@ solve_task(Task,Cost) :-
 
   (a_star(Energy,Task,[Start],ClosedList,TempR,TempCost,_Oracles,_Return) ->
     R = TempR,
-    Cost = TempCost
+    CCost = TempCost
   ;
     % need to find charging station
     a_star(Energy,find(Closest),[Start],ClosedList,Temp2R,Temp2Cost,_Oracles,_Return),!,
@@ -45,11 +46,12 @@ solve_task(Task,Cost) :-
     a_star(NewEnergy,Task,[NewStart],NewClosedList,Temp3R,Temp3Cost,_Oracles,_Return),
 
     R = Temp3R,
-    Cost is Temp2Cost + Temp3Cost
+    CCost is Temp2Cost + Temp3Cost
   ),
 
   reverse(R,[_Init|Path]), 
-  query_world( agent_do_moves, [Agent, Path] ).  % This performs the path found
+  query_world( agent_do_moves, [Agent, Path] ),
+  Cost = [CCost, CCost].  % This performs the path found
 
 
 %  ----------
@@ -87,18 +89,14 @@ a_star(_Energy,Task,OpenList,_ClosedList,ReturnPath,TotalCost,Oracles,Return) :-
 
 % recursive case
 a_star(Energy,Task,OpenList,ClosedList,ReturnPath,TotalCost,Oracles,Return) :-
+  % write($ClosedList),write('\n'),
   OpenList = [Open_h|Open_t],
   Open_h = n(Current,Depth,Cost,RPath),
   %creates a list of all possible children
   findall(n(NewCurrent,NewDepth,NewCost,NewRPath),search(Oracles,Task,Current,Depth,RPath,ClosedList,NewCurrent,NewDepth,NewCost,NewRPath),Children),
 
-  % if the list of children is empty, it's a dead end so add the position to ClosedList
-  length(Children,L),
-  (L < 1 ->
-    NewClosedList = [Current|ClosedList]
-  ;
-    NewClosedList = ClosedList
-  ),
+  NewClosedListDuplicates = [Current|ClosedList],
+  sort(NewClosedListDuplicates, NewClosedList),
 
   % check if current energy is too little, fail if true, continue if false
   % TODO: deal with case energy is equal to Cost
@@ -156,7 +154,7 @@ insert_child(Child,OpenList,NewOpenList) :-
 % searches for a possible child node and calculates its cost
 search(Oracles,Task,Current,Depth,RPath,ClosedList,NewCurrent,NewDepth,NewCost,NewRPath) :-
   map_adjacent(Current,New,empty),
-  \+memberchk(New,RPath),  % making sure New is not in RPath and ClosedList
+  % making sure New is not in ClosedList
   \+memberchk(New,ClosedList),
   NewCurrent = New,
   NewDepth is Depth + 1,
